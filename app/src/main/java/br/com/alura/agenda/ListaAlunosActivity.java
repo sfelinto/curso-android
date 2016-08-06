@@ -10,6 +10,7 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.ContextMenu;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Adapter;
@@ -23,13 +24,18 @@ import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
 import com.google.android.gms.common.api.GoogleApiClient;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import br.com.alura.agenda.adapter.AlunosAdapter;
+import br.com.alura.agenda.converter.AlunoConverter;
 import br.com.alura.agenda.dao.AlunoDAO;
 import br.com.alura.agenda.modelo.Aluno;
 
 public class ListaAlunosActivity extends AppCompatActivity {
 
+    private static final int CODIGO_SMS = 123 ;
+    private static final int CODIGO_CHAMADA = 321 ;
     private ListView listaAlunos;
     private Button novoAluno;
     private AlunoDAO alunoDao;
@@ -51,7 +57,6 @@ public class ListaAlunosActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> lista, View itemDaLista, int position, long id) {
                 Aluno aluno = (Aluno) listaAlunos.getItemAtPosition(position);
                 //Toast.makeText(ListaAlunosActivity.this, "Aluno " + aluno.getNome() + " Clicado!", Toast.LENGTH_SHORT).show();
-
                 Intent vaiParaOFormulario = new Intent(ListaAlunosActivity.this, FormularioActivity.class);
                 vaiParaOFormulario.putExtra("aluno", aluno);
                 startActivity(vaiParaOFormulario);
@@ -67,7 +72,6 @@ public class ListaAlunosActivity extends AppCompatActivity {
         });*/
 
         novoAluno = (Button) findViewById(R.id.listaAlunos_novo_aluno);
-
         novoAluno.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -87,14 +91,35 @@ public class ListaAlunosActivity extends AppCompatActivity {
         List<Aluno> alunos = alunoDao.buscaAlunos();
         alunoDao.close();
         //String[] alunos = {"Sérgio", "Thissiane", "Vasco da Gama"};
-        ArrayAdapter<Aluno> adpter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, alunos);
-        listaAlunos.setAdapter(adpter);
+        //ArrayAdapter<Aluno> adpter = new ArrayAdapter<Aluno>(this, android.R.layout.activity_list_item, alunos);
+
+        // Criando um Adapter customizado para visualizar a foto e o telefone
+        AlunosAdapter adapter = new AlunosAdapter(this, alunos);
+        listaAlunos.setAdapter(adapter);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         carregaLista();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_lista_alunos, menu);
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.menu_enviar_notas:
+                Toast.makeText(ListaAlunosActivity.this, "Enviando Notas...", Toast.LENGTH_SHORT).show();
+                new EnviaAlunosTask(this).execute();
+                break;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -108,49 +133,30 @@ public class ListaAlunosActivity extends AppCompatActivity {
             @Override
             public boolean onMenuItemClick(MenuItem item) {
                 if(ActivityCompat.checkSelfPermission(ListaAlunosActivity.this,Manifest.permission.CALL_PHONE )
-                            != PackageManager.PERMISSION_GRANTED) {
-                        ActivityCompat.requestPermissions(ListaAlunosActivity.this, new String[]{Manifest.permission.CALL_PHONE}, 123);
+                        != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(ListaAlunosActivity.this,
+                            new String[]{Manifest.permission.CALL_PHONE}, CODIGO_CHAMADA);
                 }else{
                     Intent intentLigar = new Intent(Intent.ACTION_CALL);
                     intentLigar.setData(Uri.parse("tel: " + aluno.getTelefone()));
                     startActivity(intentLigar);
                 }
-
                 return false;
             }
         });
 
         MenuItem itemSMS = menu.add("Enviar SMS");
-        Intent itemEnviarSMS = new Intent(Intent.ACTION_VIEW);
-        itemEnviarSMS.setData(Uri.parse("sms: " + aluno.getTelefone()));
-        itemSMS.setIntent(itemEnviarSMS);
-
-        MenuItem itemMapa = menu.add("Visualizar no MAPA");
-        Intent itemLocalizarNoMapa = new Intent(Intent.ACTION_VIEW);
-        itemLocalizarNoMapa.setData(Uri.parse("geo:0,0?Q=" + aluno.getEndereco()));
-        itemMapa.setIntent(itemLocalizarNoMapa);
-
-
-        MenuItem itemSite = menu.add("Visitar Site");
-        Intent intentSite = new Intent(Intent.ACTION_VIEW);
-
-        String site = aluno.getSite();
-        if (!site.startsWith("http://")) {
-            site = "http://" + site;
-        }
-
-        intentSite.setData(Uri.parse(site));
-        itemSite.setIntent(intentSite);
-
-        MenuItem deletar = menu.add("Deletar");
-        deletar.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+        itemSMS.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener(){
             @Override
             public boolean onMenuItemClick(MenuItem item) {
-                alunoDao = new AlunoDAO(ListaAlunosActivity.this);
-                Toast.makeText(ListaAlunosActivity.this, "Deletar o Aluno " + aluno.getNome(), Toast.LENGTH_SHORT).show();
-                alunoDao.deleta(aluno);
-                alunoDao.close();
-                carregaLista();
+                if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED){
+                    ActivityCompat.requestPermissions(ListaAlunosActivity.this,
+                            new String[] { Manifest.permission.RECEIVE_SMS }, CODIGO_SMS);
+                }else{
+                    Intent itemEnviarSMS = new Intent(Intent.ACTION_VIEW);
+                    itemEnviarSMS.setData(Uri.parse("sms: " + aluno.getTelefone()));
+                    startActivity(itemEnviarSMS);
+                }
                 return false;
             }
         });
@@ -199,8 +205,11 @@ public class ListaAlunosActivity extends AppCompatActivity {
     //SEMPRE PASSA AQUI QDO USAMOS PERMISSOES
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if(requestCode == 123){
+        if(requestCode == CODIGO_CHAMADA){
             //LIGAR
+            Toast.makeText(ListaAlunosActivity.this, "Fazer Ligacao para o Aluno.", Toast.LENGTH_SHORT).show();
+        }else if (requestCode == CODIGO_SMS){
+            Toast.makeText(ListaAlunosActivity.this, "Chegou SMS do seu Aluno!", Toast.LENGTH_SHORT).show();
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
