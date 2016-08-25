@@ -52,7 +52,6 @@ public class AlunoDAO extends SQLiteOpenHelper {
     }
 
     public List<Aluno> buscaAlunos() {
-
         String sql = "SELECT * FROM Alunos;";
         SQLiteDatabase db = getReadableDatabase();
         List<Aluno> alunos = new ArrayList<Aluno>();

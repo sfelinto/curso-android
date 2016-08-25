@@ -1,6 +1,7 @@
 package br.com.alura.agenda;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -23,6 +24,7 @@ import android.widget.Toast;
 import com.google.android.gms.appindexing.Action;
 import com.google.android.gms.appindexing.AppIndex;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.Releasable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,9 @@ public class ListaAlunosActivity extends AppCompatActivity {
     private ListView listaAlunos;
     private Button novoAluno;
     private AlunoDAO alunoDao;
+    private FormularioHelper helper;
+    private Aluno aluno;
+
     /**
      * ATTENTION: This was auto-generated to implement the App Indexing API.
      * See https://g.co/AppIndexing/AndroidStudio for more information.
@@ -51,7 +56,6 @@ public class ListaAlunosActivity extends AppCompatActivity {
         setContentView(R.layout.activity_lista_alunos);
 
         listaAlunos = (ListView) findViewById(R.id.lista_alunos);
-
         listaAlunos.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> lista, View itemDaLista, int position, long id) {
@@ -81,9 +85,9 @@ public class ListaAlunosActivity extends AppCompatActivity {
         });
 
         registerForContextMenu(listaAlunos);
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
+       /* // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
-        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();*/
     }
 
     private void carregaLista() {
@@ -107,7 +111,6 @@ public class ListaAlunosActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_lista_alunos, menu);
-
         return true;
     }
 
@@ -118,6 +121,10 @@ public class ListaAlunosActivity extends AppCompatActivity {
                 Toast.makeText(ListaAlunosActivity.this, "Enviando Notas...", Toast.LENGTH_SHORT).show();
                 new EnviaAlunosTask(this).execute();
                 break;
+            case R.id.menu_baixar_provas:
+                Intent vaiParaProvas = new Intent(this, ProvasActivity.class);
+                startActivity(vaiParaProvas);
+                break;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -125,10 +132,25 @@ public class ListaAlunosActivity extends AppCompatActivity {
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, final ContextMenu.ContextMenuInfo menuInfo) {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
-        final Aluno aluno = (Aluno) listaAlunos.getItemAtPosition(info.position);
+        aluno = (Aluno) listaAlunos.getItemAtPosition(info.position);
+
+        MenuItem itemDeletarAluno = menu.add("Deletar");
+        itemDeletarAluno.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener(){
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                //aluno = helper.pegaAluno();
+                alunoDao = new AlunoDAO(ListaAlunosActivity.this);
+                if(aluno.getId() != null) {
+                    alunoDao.deleta(aluno);
+                    Toast.makeText(ListaAlunosActivity.this, "Aluno: " + aluno.getNome() + "Excluído!", Toast.LENGTH_SHORT).show();
+                    alunoDao.close();
+                   onResume();
+                }
+                return false;
+            }
+        });
 
         MenuItem itemLigar = menu.add("Ligar");
-
         itemLigar.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
             @Override
             public boolean onMenuItemClick(MenuItem item) {
@@ -147,6 +169,8 @@ public class ListaAlunosActivity extends AppCompatActivity {
 
         MenuItem itemSMS = menu.add("Enviar SMS");
         itemSMS.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener(){
+
+            @SuppressLint("NewApi")
             @Override
             public boolean onMenuItemClick(MenuItem item) {
                 if (checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED){
@@ -160,13 +184,28 @@ public class ListaAlunosActivity extends AppCompatActivity {
                 return false;
             }
         });
+
+        MenuItem itemMapa = menu.add("Visualizar no mapa");
+        Intent intentMapa = new Intent(Intent.ACTION_VIEW);
+        intentMapa.setData(Uri.parse("geo:0,0?q=" + aluno.getEndereco()));
+        itemMapa.setIntent(intentMapa);
+
+        MenuItem itemSite = menu.add("Visitar site");
+        Intent intentSite = new Intent(Intent.ACTION_VIEW);
+
+        String site = aluno.getSite();
+        if (!site.startsWith("http://")) {
+            site = "http://" + site;
+        }
+        intentSite.setData(Uri.parse(site));
+        itemSite.setIntent(intentSite);
     }
 
     @Override
     public void onStart() {
         super.onStart();
 
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        /*// ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
         client.connect();
         Action viewAction = Action.newAction(
@@ -179,14 +218,14 @@ public class ListaAlunosActivity extends AppCompatActivity {
                 // TODO: Make sure this auto-generated app URL is correct.
                 Uri.parse("android-app://br.com.alura.agenda/http/host/path")
         );
-        AppIndex.AppIndexApi.start(client, viewAction);
+        AppIndex.AppIndexApi.start(client, viewAction);*/
     }
 
     @Override
     public void onStop() {
         super.onStop();
 
-        // ATTENTION: This was auto-generated to implement the App Indexing API.
+      /*  // ATTENTION: This was auto-generated to implement the App Indexing API.
         // See https://g.co/AppIndexing/AndroidStudio for more information.
         Action viewAction = Action.newAction(
                 Action.TYPE_VIEW, // TODO: choose an action type.
@@ -199,7 +238,7 @@ public class ListaAlunosActivity extends AppCompatActivity {
                 Uri.parse("android-app://br.com.alura.agenda/http/host/path")
         );
         AppIndex.AppIndexApi.end(client, viewAction);
-        client.disconnect();
+        client.disconnect();*/
     }
 
     //SEMPRE PASSA AQUI QDO USAMOS PERMISSOES
@@ -209,6 +248,7 @@ public class ListaAlunosActivity extends AppCompatActivity {
             //LIGAR
             Toast.makeText(ListaAlunosActivity.this, "Fazer Ligacao para o Aluno.", Toast.LENGTH_SHORT).show();
         }else if (requestCode == CODIGO_SMS){
+            //ENVIAR SMS
             Toast.makeText(ListaAlunosActivity.this, "Chegou SMS do seu Aluno!", Toast.LENGTH_SHORT).show();
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);

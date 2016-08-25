@@ -50,6 +50,5 @@ public class EnviaAlunosTask extends AsyncTask<Void, Void, String> {
     protected void onPostExecute(String resposta) {
         dialog.dismiss();
         Toast.makeText(context, resposta, Toast.LENGTH_SHORT).show();
-
     }
 }
